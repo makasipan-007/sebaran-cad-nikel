@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Peta Interaktif Sebaran Cadangan Nikel dan Smelter di Indonesia</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: 'Merriweather', 'Georgia', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f6f4;
+            color: #2b2b2b;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        header {
+            background: linear-gradient(135deg, #1b4332 0%, #2d6a4f 100%);
+            color: #ffffff;
+            padding: 6px 14px;
+            box-shadow: 0 3px 10px rgba(27, 67, 50, 0.2);
+            z-index: 1000;
+            border-bottom: 3px solid #52b788;
+        }
+        h1 {
+            font-size: 1.05rem;
+            font-weight: 700;
+            line-height: 1.2;
+            letter-spacing: -0.01em;
+            font-family: 'Georgia', serif;
+        }
+        p.cursor-guide {
+            margin-top: 1px;
+            font-size: 0.7rem;
+            color: #d8f3dc;
+            font-family: 'Segoe UI', sans-serif;
+        }
+        #map-container {
+            width: 100%;
+            height: 72vh;
+            position: relative;
+        }
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+        .analytics-section {
+            background: #ffffff;
+            padding: 10px 14px;
+            border-top: 2px solid #d8f3dc;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .chart-container {
+            position: relative;
+            height: 160px;
+            width: 100%;
+        }
+        .section-title {
+            font-size: 0.8rem;
+            font-weight: bold;
+            color: #1b4332;
+            margin-bottom: 4px;
+            font-family: 'Georgia', serif;
+        }
+        .info-panel {
+            background: #fdfdfd;
+            padding: 10px 14px;
+            flex: 1;
+            overflow-y: auto;
+            font-size: 0.78rem;
+            line-height: 1.45;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .info-panel p, .info-panel li {
+            color: #374151;
+            margin-bottom: 4px;
+        }
+        .info-panel ul {
+            margin-left: 16px;
+            margin-top: 2px;
+        }
+        .map-legend {
+            background: rgba(255, 255, 255, 0.97);
+            padding: 6px 8px;
+            border-radius: 5px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.18);
+            font-size: 8px;
+            line-height: 1.2;
+            color: #2b2b2b;
+            cursor: pointer;
+            border: 1px solid #cbd5e1;
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+        }
+        .legend-title {
+            font-weight: bold;
+            margin-bottom: 3px;
+            color: #1b4332;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 2px;
+            font-size: 8.5px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 3px;
+            padding: 3px 4px;
+            border-radius: 3px;
+            transition: background 0.2s;
+        }
+        .legend-item:hover {
+            background: #f1f5f9;
+        }
+        .legend-color {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            margin-right: 5px;
+            flex-shrink: 0;
+        }
+        .custom-prov-label {
+            background: rgba(255, 255, 255, 0.96);
+            border: 1px solid #b7094c;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-size: 6.2px;
+            font-weight: bold;
+            color: #b7094c;
+            white-space: nowrap;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+            line-height: 1.25;
+        }
+        .custom-smelter-label {
+            background: rgba(27, 67, 50, 0.96);
+            border: 1px solid #1b4332;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-size: 6px;
+            font-weight: bold;
+            color: #ffffff;
+            white-space: nowrap;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+            line-height: 1.2;
+        }
+        @media (max-width: 768px) {
+            h1 { font-size: 0.9rem; }
+            #map-container { height: 60vh; }
+            .chart-container { height: 130px; }
+            .info-panel { padding: 8px 10px; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Peta Interaktif Sebaran Cadangan Nikel dan Smelter di Indonesia</h1>
+        <p class="cursor-guide"><em>Gunakan kursor untuk mengatur arah peta</em></p>
+    </header>
+
+    <div id="map-container">
+        <div id="map"></div>
+    </div>
+
+    <div class="analytics-section">
+        <div class="section-title">Grafik Perbandingan Cadangan Bijih & Logam Nikel per Provinsi</div>
+        <div class="chart-container">
+            <canvas id="nikelChart"></canvas>
+        </div>
+    </div>
+
+    <div class="info-panel">
+        <ul>
+            <li><strong>Sulawesi Tenggara & Sulawesi Tengah,</strong> menjadi pusat cadangan terbesar di Indonesia. Sulawesi Tenggara mencatat jumlah lokasi terbanyak (209 lokasi) dengan cadangan bijih mencapai 1,99 miliar ton (logam 20,9 juta ton), diikuti Sulawesi Tengah dengan 101 lokasi dan cadangan bijih 980,94 juta ton (logam 10,8 juta ton).</li>
+            <li><strong>Maluku Utara</strong> menduduki peringkat kedua cadangan nikel terbanyak, yakni mencapai 1,84 miliar ton (bijih nikel) dan 18,9 juta ton (logam nikel) dengan 82 lokasi.</li>
+            <li><strong>Saat ini,</strong> tercatat lebih dari 40 fasilitas smelter beroperasi atau dalam tahap konstruksi di seluruh Indonesia, yang terkonsentrasi di kawasan industri utama seperti <strong>IMIP Morowali</strong> (Sulawesi Tengah), <strong>IWIP Weda Bay</strong> & <strong>Pulau Obi</strong> (Maluku Utara), serta <strong>Konawe dan Pomalaa</strong> (Sulawesi Tenggara). Fasilitas smelter ini mengolah bijih nikel laterit menjadi produk bernilai tambah tinggi seperti Feronikel, <em>Nickel Pig Iron</em> (NPI), hingga bahan baku baterai kendaraan listrik (HPAL).</li>
+        </ul>
+        <p style="margin-top: 8px; font-size: 0.72rem; color: #555; font-style: italic;"><strong>Sumber sebaran cadangan nikel :</strong> Laporan Badan Geologi KESDM 2025</p>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script>
+        window.onload = function () {
+            const map = L.map('map').setView([-2.548926, 118.014863], 5);
+
+            const esriStreet = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+                attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
+                maxZoom: 19
+            });
+
+            const googleSat = L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+                maxZoom: 20,
+                subdomains: ['mt0','mt1','mt2','mt3'],
+                attribution: '&copy; Google Maps'
+            });
+
+            esriStreet.addTo(map);
+
+            const baseMaps = {
+                "Peta Jalan (Esri)": esriStreet,
+                "Citra Satelit (Google)": googleSat
+            };
+
+            const nikelData = [
+                { provinsi: "Aceh", lat: 4.695135, lng: 96.749399, lokasi: 1, bijih: "Tidak tersedia", logam: "Tidak tersedia", bijihVal: 0, logamVal: 0 },
+                { provinsi: "Kalimantan Selatan", lat: -3.093417, lng: 115.283758, lokasi: 3, bijih: "121,65 juta ton", logam: "760 ribu ton", bijihVal: 121.65, logamVal: 0.76 },
+                { provinsi: "Kalimantan Tengah", lat: -1.681478, lng: 113.382354, lokasi: 1, bijih: "9,78 juta ton", logam: "117 ribu ton", bijihVal: 9.78, logamVal: 0.117 },
+                { provinsi: "Kalimantan Timur", lat: 0.538657, lng: 116.419389, lokasi: 1, bijih: "Tidak tersedia", logam: "Tidak tersedia", bijihVal: 0, logamVal: 0 },
+                { provinsi: "Maluku", lat: -3.238462, lng: 130.145273, lokasi: 1, bijih: "147,81 juta ton", logam: "2,6 juta ton", bijihVal: 147.81, logamVal: 2.6 },
+                { provinsi: "Maluku Utara", lat: 1.570999, lng: 127.808769, lokasi: 82, bijih: "1,84 miliar ton", logam: "18,9 juta ton", bijihVal: 1840, logamVal: 18.9 },
+                { provinsi: "Papua", lat: -4.269928, lng: 138.080353, lokasi: 6, bijih: "Tidak tersedia", logam: "Tidak tersedia", bijihVal: 0, logamVal: 0 },
+                { provinsi: "Papua Barat Daya", lat: -1.157814, lng: 131.520448, lokasi: 13, bijih: "72,25 juta ton", logam: "849 ribu ton", bijihVal: 72.25, logamVal: 0.849 },
+                { provinsi: "Papua Tengah", lat: -3.791557, lng: 136.216347, lokasi: 1, bijih: "Tidak tersedia", logam: "Tidak tersedia", bijihVal: 0, logamVal: 0 },
+                { provinsi: "Sulawesi Selatan", lat: -3.668485, lng: 119.974054, lokasi: 14, bijih: "735,3 juta ton", logam: "6,8 juta ton", bijihVal: 735.3, logamVal: 6.8 },
+                { provinsi: "Sulawesi Tengah", lat: -1.430025, lng: 121.445618, lokasi: 101, bijih: "980,94 juta ton", logam: "10,8 juta ton", bijihVal: 980.94, logamVal: 10.8 },
+                { provinsi: "Sulawesi Tenggara", lat: -4.144912, lng: 122.162704, lokasi: 209, bijih: "1,99 miliar ton", logam: "20,9 juta ton", bijihVal: 1990, logamVal: 20.9 }
+            ];
+
+            const cleanedSmelterList = [
+                { nama: "IMIP Morowali", lat: -2.8534, lng: 121.9345 },
+                { nama: "PT GNI Morowali Utara", lat: -1.9845, lng: 121.3123 },
+                { nama: "PT VDNI & OSS Konawe", lat: -3.9654, lng: 122.2567 },
+                { nama: "IWIP Weda Bay", lat: 0.3856, lng: 127.9123 },
+                { nama: "Harita Pulau Obi", lat: -1.6543, lng: 127.6123 },
+                { nama: "PT Antam Maba", lat: 0.9543, lng: 128.3123 },
+                { nama: "PT Vale Pomalaa", lat: -4.3345, lng: 121.5123 },
+                { nama: "Konawe Utara Smelter", lat: -3.4215, lng: 122.0543 },
+                { nama: "Kolaka Utara Smelter", lat: -3.3124, lng: 121.1234 },
+                { nama: "Bantaeng Industrial Park", lat: -5.5345, lng: 119.9234 },
+                { nama: "Sorowako Luwu Timur", lat: -2.5345, lng: 121.3543 },
+                { nama: "Weda Bay Expansion", lat: 0.4500, lng: 127.8500 },
+                { nama: "Obi South Smelter", lat: -1.7200, lng: 127.5500 },
+                { nama: "Morowali South Park", lat: -2.9100, lng: 121.8900 },
+                { nama: "Konawe South Plant", lat: -4.0500, lng: 122.3000 },
+                { nama: "Kolaka Processing Hub", lat: -4.1500, lng: 121.6000 }
+            ];
+
+            const cadanganGroup = L.layerGroup();
+            const smelterGroup = L.layerGroup();
+
+            nikelData.forEach(item => {
+                let radius = Math.max(3000, Math.sqrt(item.lokasi) * 4500);
+
+                const circle = L.circle([item.lat, item.lng], {
+                    radius: radius,
+                    color: '#b7094c',
+                    fillColor: '#f77f00',
+                    fillOpacity: 0.5,
+                    weight: 1.5
+                });
+
+                let bijihText = item.bijihVal > 0 ? `${item.bijihVal} juta ton` : 'Tidak tersedia';
+                let logamText = item.logamVal > 0 ? `${item.logamVal} juta ton` : 'Tidak tersedia';
+                if (item.bijihVal >= 1000) {
+                    let m = (item.bijihVal / 1000).toFixed(2);
+                    bijihText = `${m} miliar ton`;
+                }
+
+                const labelContent = `<b>${item.provinsi}</b><br>Lokasi: ${item.lokasi}<br>Bijih: ${bijihText}<br>Logam: ${logamText}`;
+                circle.bindTooltip(labelContent, {
+                    permanent: true,
+                    direction: 'right',
+                    className: 'custom-prov-label'
+                });
+
+                circle.addTo(cadanganGroup);
+            });
+
+            cleanedSmelterList.forEach(smelter => {
+                const smelterMarker = L.circleMarker([smelter.lat, smelter.lng], {
+                    radius: 2,
+                    color: '#1b4332',
+                    fillColor: '#52b788',
+                    fillOpacity: 0.9,
+                    weight: 1
+                });
+
+                const smelterLabel = `🏭 ${smelter.nama}`;
+                smelterMarker.bindTooltip(smelterLabel, {
+                    permanent: true,
+                    direction: 'left',
+                    className: 'custom-smelter-label'
+                });
+
+                smelterMarker.addTo(smelterGroup);
+            });
+
+            cadanganGroup.addTo(map);
+
+            L.control.layers(baseMaps, null, { position: 'topright' }).addTo(map);
+
+            const ctx = document.getElementById('nikelChart').getContext('2d');
+            const filteredChartData = nikelData.filter(d => d.bijihVal > 0);
+            
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: filteredChartData.map(d => d.provinsi),
+                    datasets: [
+                        {
+                            label: 'Bijih Nikel (juta ton)',
+                            data: filteredChartData.map(d => d.bijihVal),
+                            borderColor: '#b7094c',
+                            backgroundColor: 'rgba(183, 9, 76, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.3,
+                            fill: true,
+                            pointRadius: 3,
+                            pointBackgroundColor: '#b7094c'
+                        },
+                        {
+                            label: 'Logam Nikel (juta ton)',
+                            data: filteredChartData.map(d => d.logamVal),
+                            borderColor: '#1b4332',
+                            backgroundColor: 'rgba(27, 67, 50, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.3,
+                            fill: true,
+                            pointRadius: 3,
+                            pointBackgroundColor: '#1b4332'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                font: { size: 9, family: 'Segoe UI' },
+                                boxWidth: 10,
+                                padding: 6
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.parsed.y !== null ? context.parsed.y : '';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: { font: { size: 8 } },
+                            grid: { display: false }
+                        },
+                        y: {
+                            ticks: { font: { size: 8 } },
+                            grid: { color: '#f1f5f9' }
+                        }
+                    }
+                }
+            });
+
+            const legend = L.control({position: 'bottomright'});
+            legend.onAdd = function (map) {
+                const div = L.DomUtil.create('div', 'map-legend');
+                div.innerHTML = `
+                    <div class="legend-title">Klik filter peta</div>
+                    <div class="legend-item" id="toggle-cadangan" style="background: #f1f5f9;">
+                        <div class="legend-color" style="background: #f77f00; border: 1px solid #b7094c;"></div> 
+                        <span><b>Cadangan Provinsi (Aktif)</b></span>
+                    </div>
+                    <div class="legend-item" id="toggle-smelter" style="background: #fff; opacity: 0.5;">
+                        <div class="legend-color" style="background: #52b788; border: 1px solid #1b4332;"></div> 
+                        <span>Titik Smelter (Nonaktif)</span>
+                    </div>
+                `;
+
+                L.DomEvent.disableClickPropagation(div);
+
+                let cadanganVisible = true;
+                let smelterVisible = false;
+
+                div.querySelector('#toggle-cadangan').onclick = function() {
+                    if (cadanganVisible) {
+                        map.removeLayer(cadanganGroup);
+                        this.style.opacity = '0.5';
+                        this.style.background = '#fff';
+                        this.querySelector('span').innerHTML = 'Cadangan Provinsi (Nonaktif)';
+                        cadanganVisible = false;
+                    } else {
+                        map.addLayer(cadanganGroup);
+                        this.style.opacity = '1';
+                        this.style.background = '#f1f5f9';
+                        this.querySelector('span').innerHTML = '<b>Cadangan Provinsi (Aktif)</b>';
+                        cadanganVisible = true;
+                    }
+                };
+
+                div.querySelector('#toggle-smelter').onclick = function() {
+                    if (smelterVisible) {
+                        map.removeLayer(smelterGroup);
+                        this.style.opacity = '0.5';
+                        this.style.background = '#fff';
+                        this.querySelector('span').innerHTML = 'Titik Smelter (Nonaktif)';
+                        smelterVisible = false;
+                    } else {
+                        map.addLayer(smelterGroup);
+                        this.style.opacity = '1';
+                        this.style.background = '#f1f5f9';
+                        this.querySelector('span').innerHTML = '<b>Titik Smelter (Aktif)</b>';
+                        smelterVisible = true;
+                    }
+                };
+
+                return div;
+            };
+            legend.addTo(map);
+        };
+    </script>
+</body>
+</html>
